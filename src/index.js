@@ -13,7 +13,7 @@ then(() => {
         throw error
     })
     app.listen(process.env.PORT || 8000, ()=>{
-        console.log(`Port is running on ${PORT}`)
+        console.log(`Port is running on ${process.env.PORT}`)
     })
 })
 .catch((err) => {
