@@ -5,9 +5,10 @@ import { User } from "../models/user-model.js";
 import { cloudinaryFileUpload } from "../utils/cloudinary.js"
 import jwt from "jsonwebtoken";
 
+
 const userAccessAndRefreshToken = async (userid) => {
     try {
-        const user = User.findById(userid)
+        const user =await User.findById(userid)
         const accessToken = user.generateAccessToken()
         const refreshToken = user.generateRefreshToken()
     
@@ -118,32 +119,35 @@ const userLogin = asyncHandler(async (req, res) =>{
 
     const {email, username, password} = req.body
     console.log(email);
+    console.log(username);
 
-    if (!username && !email) {
-        throw new ApiError(400, "username or email is required")
-    }
+    // if (!username && !email) {
+    //     throw new ApiError(400, "username or email is required")
+    // }
     
     // Here is an alternative of above code based on logic discussed in video:
-    // if (!(username || email)) {
-    //     throw new ApiError(400, "username or email is required")
+    if (!(username || email)) {
+        throw new ApiError(400, "username or email is required")
         
-    // }
+    }
 
     const user = await User.findOne({
         $or: [{username}, {email}]
     })
+    // console.log(user.password)
 
     if (!user) {
         throw new ApiError(404, "User does not exist")
     }
 
    const isPasswordValid = await user.isPasswordCorrect(password)
+   console.log(isPasswordValid)
 
    if (!isPasswordValid) {
     throw new ApiError(401, "Invalid user credentials")
     }
 
-   const {accessToken, refreshToken} = await generateAccessAndRefereshTokens(user._id)
+   const {accessToken,refreshToken} = await userAccessAndRefreshToken(user._id)
 
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
 
@@ -168,7 +172,7 @@ const userLogin = asyncHandler(async (req, res) =>{
 
 })
 
-const userlogout = asyncHandler (async (req,res) => {
+const userLogout = asyncHandler (async (req,res) => {
     await User.findByIdAndUpdate(req.user_id,{
         $set: {
             refreshToken : undefined
@@ -195,4 +199,4 @@ const userlogout = asyncHandler (async (req,res) => {
 })
 
 
-export {userRegister,userLogin}
+export {userRegister,userLogin,userLogout}

@@ -1,5 +1,5 @@
 import { Router }  from "express";
-import { userRegister , userLogin} from "../controllers/user-controller.js";
+import { userRegister , userLogin, userLogout} from "../controllers/user-controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
