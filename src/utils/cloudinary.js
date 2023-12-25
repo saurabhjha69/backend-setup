@@ -26,5 +26,15 @@ const cloudinaryFileUpload = async (filePath) => {
     }
 }
 
+const userAvatarOrCoverRemover = async (cloudinaryUrl) => {
+    console.log(cloudinaryUrl)
+    await cloudinary.uploader.destroy(cloudinaryUrl,(result)=>{
+        console.log(result);
+    })
 
-export { cloudinaryFileUpload };
+    // console.log("User avatar or coverimage removing Results: \n",response)
+    // console.log("File Deleted SuccessFully from cloud")
+}
+
+
+export { cloudinaryFileUpload , userAvatarOrCoverRemover};
