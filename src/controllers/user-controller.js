@@ -1,7 +1,9 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { Subscription } from "../models/subscription-model.js";
 import { User } from "../models/user-model.js";
+import mongoose  from "mongoose";
 import {
   cloudinaryFileUpload,
   userAvatarOrCoverRemover,
@@ -351,7 +353,7 @@ const userUpdateCoverImage = asyncHandler(async (req, res) => {
       throw new ApiError(400, "file not found!!");
     }
   
-    // const coverUrl = req.user.avatar;
+    const coverUrl = req.user.coverImage;
   
     const coverImageUploaded = await cloudinaryFileUpload(coverImageLocalPath);
     if (!coverImageUploaded.url) {
@@ -374,11 +376,10 @@ const userUpdateCoverImage = asyncHandler(async (req, res) => {
       throw new ApiError(401, "cover Image failed to update!");
     }
   
-    // try {
-    //   await userAvatarOrCoverRemover(avatarUrl);
-    // } catch (error) {
-    //   console.log("failed to delete old image from cloud!!", error);
-    // }
+    const oldcoverImageRemover = await userAvatarOrCoverRemover(coverUrl);
+    if(!oldcoverImageRemover){
+      throw new ApiError(400,"Failed To remove old avatr from cloud!!")
+    }
   
     res
       .status(200)
@@ -386,7 +387,7 @@ const userUpdateCoverImage = asyncHandler(async (req, res) => {
   });
 
 const userChannelDetailsAdder = asyncHandler(async (req, res) => {
-  const username = req.params?.username;
+  const username = req.params;
 
   if (!username) {
     throw new ApiError(400, "usernname not found!!");
@@ -395,53 +396,57 @@ const userChannelDetailsAdder = asyncHandler(async (req, res) => {
   const channel = await User.aggregate([
     {
       $match: {
-            username: username?.toLowerCase(),
+        username: username.username?.toLowerCase()
       }
     },
     {
       $lookup: {
         from: "subscriptions",
-        localField: "_id",
-        foreignField: "channel",
-        as: "subscribers",
-      },
+        localField: "channel",
+        foreignField: "_id",
+        as: "subscribers"
+      }
     },
     {
       $lookup: {
         from: "subscriptions",
-        localField: "_id",
-        foreignField: "subscribers",
-        as: "subscribedTo",
-      },
+        localField: "subscribers",
+        foreignField: "_id",
+        as: "subscribedTo"
+      }
     },
     {
       $addFields: {
         subscribers: {
-          $size: "$subscribers",
+          $size: "$subscribers"
         },
         subscribedToChannels: {
-          $size: "subscribedTo",
+          $size: "$subscribedTo"
         },
         isSubscribed: {
-          if: { $in: [req.user?._id, "$subscribers.subscriber"] },
-          then: true,
-          else: false,
-        },
-      },
+          $cond: {
+            if: {
+              $in: [req.user?._id , "$subscribers.subscriber"]
+            },
+            then: true,
+            else: false
+          }
+        }
+      }
     },
     {
-      project: {
+      $project: {
         username: 1,
         fullname: 1,
-        email: 1,
         avatar: 1,
         coverImage: 1,
         subscribers: 1,
         subscribedToChannels: 1,
         isSubscribed: 1,
-      },
-    },
-  ]);
+        createdAt: 1
+      }
+    }
+  ])
 
   if (!channel?.length) {
     throw new ApiError(400, "channel doesnot exist");
@@ -452,11 +457,38 @@ const userChannelDetailsAdder = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, channel[0], "channel fecthed successfully!"));
 });
 
+const userDeleteAccount = asyncHandler (async (req,res) => {
+  const userId = req.user?._id
+  const avatar1 = req.user?.avatar
+  
+  const coverrImage1 = req.user?.coverImage
+
+  const deletedUser = await User.deleteOne({_id: userId})
+
+  if(!deletedUser){
+    throw new ApiError(400,"Failed to delete existing User!!")
+  }
+
+  await userAvatarOrCoverRemover(avatar1)
+
+  if(coverrImage1){
+    await userAvatarOrCoverRemover(coverrImage1)
+  }
+  
+
+  // console.log(deletedUser)
+
+
+
+  res.status(200)
+  .json(new ApiResponse(200,{},"User Deleted SuccessFully!"))
+})
+
 const userwatchHistory = asyncHandler(async (req, res) => {
     const user = await User.aggregate([
         {
             $match: {
-                _id: mongoose.Types.ObjectId(req.user._id)
+                _id: new mongoose.Types.ObjectId(req.user._id)
             }
         },
         {
@@ -499,6 +531,22 @@ const userwatchHistory = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200,user[0].watchHistory,"User Watch history Fetched!"))
 });
 
+const getAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find().select("-password -refreshtoken");
+
+  if (!users) {
+    throw new ApiError(400, "Failed to Fetch Users!");
+  }
+
+  console.log(users);
+  return res.status(200).json(new ApiResponse(200, users, "All users are fetched"));
+});
+
+
+
+
+
+
 export {
   userRegister,
   userLogin,
@@ -510,5 +558,7 @@ export {
   userUpdateAvatar,
   userUpdateCoverImage,
   userChannelDetailsAdder,
-  userwatchHistory
+  userwatchHistory,
+  getAllUsers,
+  userDeleteAccount
 };

@@ -28,8 +28,17 @@ const cloudinaryFileUpload = async (filePath) => {
 
 const userAvatarOrCoverRemover = async (cloudinaryUrl) => {
     console.log(cloudinaryUrl)
-    await cloudinary.uploader.destroy(cloudinaryUrl,(result)=>{
-        console.log(result);
+    const urlSplit = cloudinaryUrl.split('/')
+    const urlName = urlSplit[urlSplit.length-1].split('.')[0]
+    await cloudinary.uploader.destroy(urlName,{
+        resource_type: "image"
+    }).then((error , result)=>{
+        if (error) {
+            console.log(error);
+        }
+        else {
+            console.log(result);
+        }
     })
 
     // console.log("User avatar or coverimage removing Results: \n",response)
